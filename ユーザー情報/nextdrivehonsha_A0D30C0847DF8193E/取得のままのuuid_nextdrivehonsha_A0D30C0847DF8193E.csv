@@ -1,0 +1,10 @@
+,機器名,あだ名,Uuid,Status
+0,Camera,Cam,880083a6-a2e1-4fa3-84d1-8f4f908bd096,offline
+1,ElecWaterHeater,電気温水器,6cb6d6b1-b215-4b45-ad01-6bd5792b684f,online
+2,AirCon,エアコン,5c3f9232-eec7-4e59-a332-8953cd8b1baf,online
+3,SolarPW,河村太陽光発電システム,e85548c6-5713-45fd-91c0-28f2283bc8f9,online
+4,PWDBoard,河村分電盤,adbb94db-a7c4-4663-9184-2e14624bad5f,online
+5,SmartMeter,SmartMeter3,01476231-945c-4cd1-b2cb-b258dc1c03b9,online
+6,StgBattery,Omron蓄電池,ce5f9880-8052-4a13-b3c4-cd88c559f1d2,online
+7,SolarPW,太陽能板,2d1f0def-b231-4664-b9e2-d5524e0046c9,online
+8,PWDBoard,オムロン分電盤,8a97003d-2cc3-4100-abcf-afe055674406,online

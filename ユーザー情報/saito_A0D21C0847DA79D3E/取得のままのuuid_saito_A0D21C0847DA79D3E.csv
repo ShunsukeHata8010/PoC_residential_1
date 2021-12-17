@@ -1,0 +1,6 @@
+,機器名,あだ名,Uuid,Status
+0,Camera,Camera,6ee99b91-124c-4f36-8ccf-2c15f0f59c5b,offline
+1,SmartMeter,スマートメーター,ef933c23-99b5-408f-8739-4125a774fbdd,online
+2,StgBattery,蓄電池,46adf3a6-af50-4b3e-b8fa-2af213df6313,online
+3,SolarPW,太陽光発電システム,58a29547-bbc9-410c-8362-d1e8b5f37825,online
+4,PWDBoard,分電盤,e79bbbb8-3e8c-4d3e-be4f-7c8603fcb24f,online

@@ -1,0 +1,7 @@
+,機器名,あだ名,Uuid,Status
+0,Pixi-HT,温度計,8f623622-4e35-4b64-ab80-825ca9ad66ab,online
+1,AirCon,リビングエアコン,75966ac3-bb42-4983-bdac-7ca89b6f351c,online
+2,Beep,寝室,bbbf7da4-1bc8-439f-a262-36c4864d1e51,online
+3,SmartMeter,スマメ,55bdea67-f410-49dc-a1bb-400b1dd769d3,online
+4,Camera,Camera,c0cd8f9d-1c8b-493b-b366-98b09f11b95a,offline
+5,Pixi-G,玄関,b05e4742-d5d1-4970-8275-91782db6861c,online

@@ -1,0 +1,6 @@
+,機器名,あだ名,Uuid,Status
+0,SmartMeter,スマートメーター,a1d69c43-560b-4b9f-9574-5763518704f6,online
+1,Camera,Camera,bb919eb1-48c4-43a5-bffa-1118e09ef6ec,offline
+2,AirCon,リビングのエアコン,03a34ea9-ada6-411d-94c9-3568a6c39572,online
+3,AirCon,寝室のエアコン,b48c81ed-3330-4482-a311-2680252ef95f,online
+4,Pixi-G,玄関のモーションセンサー,13e7b7ea-15b8-4ac7-8118-d865aa543c0a,online
