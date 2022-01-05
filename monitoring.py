@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import time,datetime,timedelta
 import os
 from altair.vegalite.v4.schema.core import Encoding
 from numpy.lib.shape_base import tile
@@ -10,6 +10,7 @@ from nextdriveAPI_class import House
 from create_csv_from_database import read_database,Data
 import sqlalchemy
 import time
+from database_mysql_for_jepx import read_database_jepx,Data_jepx
 
 #タイトルを入れる
 def input_title():
@@ -49,8 +50,13 @@ def make_duration():
 
 @st.cache(suppress_st_warning=True)
 def df_from_database(name,id):
+    now = datetime.now()
+    #ここで現在コマより新しい行だけをとってくるための作業をする            
+    day_20ago = now.replace(minute=0, second=0, microsecond=0) - timedelta(20)
+    print(day_20ago)
     db_session = read_database(name,id)
     db = db_session.query(Data).all()
+    #db = db_session.query(Data).filter(Data.time >day_20ago)
     columns=['id','日時','予測値_PV','PV発電量','買電量','予測値_demand',
     'battery状態','SOC','充電可能量','放電可能量','残電力量','SOC_増減',
     '充電量可能量_増減','放電可能量_増減','残電力量_増減','充放電指示量',
@@ -80,7 +86,11 @@ def df_from_database(name,id):
     time.sleep(0.05)
     return df
 
-def make_1st_chart(df,selected_duration,cut_duration):
+def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
+    print(df_jepx)
+    df_jepx['価格(10分の1)_'+power_com] = df_jepx['価格'] * 0.1
+    df = pd.merge(df, df_jepx, on='日時', how='outer')
+    print(df)
     selected_koma = selected_duration*48
     cut_koma = cut_duration*48
     df_length = len(df)
@@ -89,20 +99,25 @@ def make_1st_chart(df,selected_duration,cut_duration):
         min_display = df_length - selected_koma
     else:
         min_display = 0
+
     if df_length >= cut_koma:
         max_display = df_length - cut_koma
     else:
         max_display = df_length
-
+    print(min_display,max_display)
     df = df.iloc[min_display:max_display,:]
-
+    print(df)
     list_linechart_1 = []
-    list_barchart_1 =[]
-    list_tick_1 =[]
+    list_linechart_2= []
+    list_barchart_1 = []
+    list_tick_1 = []
     y_heating_onoff = []
     y_aircon = []
     df_copy = df.copy()#SettingWithCopyWarning防止用
     #print(df_copy)
+
+    if '価格(10分の1)_'+power_com in df.columns:
+        list_linechart_2.append('価格(10分の1)_'+power_com)
 
     if '予測値_PV'in df.columns:
         list_linechart_1.append('予測値_PV')
@@ -162,7 +177,7 @@ def make_1st_chart(df,selected_duration,cut_duration):
 
     selected_line_data_1 = st.sidebar.multiselect(
     'グラフに折れ線として入れるデータ種類を選んでください',
-    list_linechart_1
+    list_linechart_1+list_linechart_2
     )
     selected_bar_data_1 = st.sidebar.multiselect(
     'グラフに棒グラフとして入れるデータ種類を選んでください',
@@ -172,17 +187,19 @@ def make_1st_chart(df,selected_duration,cut_duration):
     'グラフに横棒として入れるデータ種類を選んでください',
     list_tick_1
     )
+
     selected_line_data_1.append('日時')
     selected_bar_data_1.append('日時')
     selected_tick_data_1.append('日時')
+
     df_line_1 = df_copy.loc[:,selected_line_data_1]
     df_bar_1 = df_copy.loc[:,selected_bar_data_1]
     df_tick_1 = df_copy.loc[:,selected_tick_data_1]
-    #print(df_line_1)
+
     df_line_1 = pd.melt(df_line_1,id_vars=['日時']).rename(columns={'value':'kWh'})
     df_bar_1 = pd.melt(df_bar_1,id_vars=['日時']).rename(columns={'value':'kWh'})
     df_tick_1 = pd.melt(df_tick_1,id_vars=['日時']).rename(columns={'value':'kWh'})
-    
+    #print(df_line_1)
     #どうも、以下で、タイムゾーンがずれている！→ scale=alt.Scale(type="utc")を入れて解決
     line1 = alt.Chart(df_line_1).mark_line(opacity=0.8).encode(
         x=alt.X('日時:T', scale=alt.Scale(type="utc")),
@@ -192,7 +209,6 @@ def make_1st_chart(df,selected_duration,cut_duration):
         width=1200,
         height=600
         ).interactive()
-
     bar1 = alt.Chart(df_bar_1).mark_bar(opacity=0.8).encode(
         x=alt.X('日時:T', scale=alt.Scale(type="utc")),
         y=alt.Y('kWh:Q'),
@@ -212,9 +228,24 @@ def make_1st_chart(df,selected_duration,cut_duration):
         ).interactive()
 
     st.altair_chart(line1 + bar1 + tick1,use_container_width=True)
-    
-def recent_30min_get(name,id):
 
+    return df
+
+#@st.cache(suppress_st_warning=True)
+def download_jepx(power_com):
+    power_com = power_com.replace('北海道','Hokkaido').replace('東北','Tohoku').replace('東京','Tokyo').replace('中部','Chubu').replace('北陸','Hokuriku').replace('関西','Kansai').replace('中国','Chugoku').replace('四国','Shikoku').replace('九州','Kyushu')
+    db_session = read_database_jepx(power_com)
+    db = db_session.query(Data_jepx).all()
+    df = pd.DataFrame()
+    for row in db:
+        s = pd.Series([row.id,row.time,row.price])
+        df = df.append(s,ignore_index=True)
+    
+    df = df.rename(columns={0:'id',1:'日時',2:'価格'})
+    
+    return df
+
+def recent_30min_get(name,id):
     selected_item = st.sidebar.radio('どの機器の直近30分の状況を見ますか?',
                              ['スマートメーター','PV','蓄電池','温湿度計','エアコン','エコキュート'])
     button_30min = st.sidebar.button('直近30分の機器状況を見る')
@@ -322,17 +353,31 @@ def recent_30min_get(name,id):
 
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+#@st.cache(suppress_st_warning=True)
+def select_power_com(id):
+    path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
+    path_userinfo = path_origin +'\\ユーザー情報'
+    os.chdir(path_userinfo)
+    df_user = pd.read_excel('ユーザー情報.xlsx')
+    df_user = df_user.set_index('Product ID')
+    power_com = df_user.loc[str(id),'電力管内']
+    os.chdir(path_origin)
+    
+    return power_com 
+
 if __name__ == "__main__":
     pd.set_option('display.max_rows', 1500)
     input_title()
     name,id = make_select_users()
+    power_com = select_power_com(id)
+    df_jepx = download_jepx(power_com)
     try:
         df = df_from_database(name,id)
     except sqlalchemy.exc.OperationalError:
         print(name,'は、まだデータベースに登録されていません。')
     else:
         selected_duration,cut_duration = make_duration()
-        make_1st_chart(df,selected_duration,cut_duration)
+        make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com)
     finally:
         recent_30min_get(name,id)
 

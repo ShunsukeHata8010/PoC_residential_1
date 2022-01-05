@@ -82,8 +82,8 @@ def dict_ElecWaterHeater(dict):
 def DataRetrieval_30min(name_id,Uuid,scope):#すぐ前の"コマの"30分間のデータを取得する。uuidとscopeは引数
  
     startTime,endTime = set_time_30min()
-    #print(startTime)
-    #print(endTime)
+    print(startTime)
+    print(endTime)
     endTime_hokan = endTime
 
     #queryは複数のUuidにも対応しているが、エラーになりやすいので、とりあえず1個ずつやるとする。
@@ -156,20 +156,15 @@ def DataRetrieval_LATEST_30min(name_id,Uuid,scope):#本当の直前30分間の�
     generatedTime = []
     uploadedTime = []
     value = []
-
     try:
         data = data['results']    #データ（timeで指定）が過ぎると、[]で返ってくる。
-
     except:
         pid.append(np.nan)
         scope.append(np.nan)
         generatedTime.append(np.nan)
         uploadedTime.append(np.nan)
         value.append(np.nan)
-
     else:
-
-        
         for i in data:
             pid.append(i['pid'])
             Uuid.append(i['deviceUuid'])
@@ -213,17 +208,13 @@ def DataRetrieval_LATEST_45min(name_id,Uuid,scope):#本当の直前31分間の�
 
     try:
         data = data['results']    #データ（timeで指定）が過ぎると、[]で返ってくる。
-
     except:
         pid.append(np.nan)
         scope.append(np.nan)
         generatedTime.append(np.nan)
         uploadedTime.append(np.nan)
         value.append(np.nan)
-
-
     else:
-
         for i in data:
             pid.append(i['pid'])
             Uuid.append(i['deviceUuid'])
@@ -523,7 +514,6 @@ def store_ElecWaterHeater(name_id,uuid_ElecWaterHeater):
     list_hokan_numberOfEnergyShift =[]
     list_hokan_daytimeHeatingShiftTime1 =[]
 
-    #scope_ElecWaterHeater =  ["operationStatus","autoWaterHeatingMode","waterHeaterStatus"]
     scope_ElecWaterHeater =  ["operationStatus","autoWaterHeatingMode","waterHeaterStatus",'participateInEnergyShift','timeToStartHeating','numberOfEnergyShift','daytimeHeatingShiftTime1']
     df_ElecWaterHeater,endtime_ElecWaterHeater = DataRetrieval_30min(name_id,uuid_ElecWaterHeater,scope_ElecWaterHeater)
     list_hokan_jikoku.append(endtime_ElecWaterHeater)

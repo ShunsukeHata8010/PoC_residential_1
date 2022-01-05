@@ -5,8 +5,8 @@ import datetime
 import jpholiday
 
 def data_processing_for_prediction(name,id):
-    path_saki='C:\\Users\\f-apl-admin\\住宅実証3\\需要予測用学習データ\\'+str(name)+'_'+str(id)
-    path_moto = 'C:\\Users\\f-apl-admin\\住宅実証3\\mysqlから取得したデータ\\' + str(name)+'_'+str(id)
+    path_saki= path_origin + '\\需要予測用学習データ\\'+str(name)+'_'+str(id)
+    path_moto = path_origin + '\\mysqlから取得したデータ\\' + str(name)+'_'+str(id)
     
     if os.path.exists(path_saki)==False:
         print(name+'_'+str(id)+'は、需要電力予測用のデータを格納する先のフォルダがないので作成します。')
@@ -100,7 +100,6 @@ def data_processing_for_prediction(name,id):
             return df
 
 if __name__ == '__main__':
-    #os.chdir("C:\\Users\\f-apl-admin\\住宅実証3\\ユーザー情報")
     path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
     path_userinfo = path_origin +'\\ユーザー情報'
     os.chdir(path_userinfo)

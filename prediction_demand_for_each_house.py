@@ -134,7 +134,6 @@ def calc_demand(name,id):
                 #print(time)
                 data.loc[time] = y_pred
 
-
         #翌日分
         for i in range(13,61): #13番目=0:00,60番目=23:30
             try:

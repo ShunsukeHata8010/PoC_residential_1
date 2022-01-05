@@ -15,8 +15,8 @@ import sqlalchemy
 #Read用関数
 def read_database(name,id):
     database = 'data_30min_'+name+'_'+id
-    engine = create_engine('mysql+pymysql://root:@Idemitsu1@127.0.0.1/'+database,echo=True)
-
+    engine = create_engine('mysql+pymysql://root:@Idemitsu1@127.0.0.1/'+database,echo=False)
+    #echoはどうせ見ないので、Falseにしておく
     db_session = scoped_session(
         sessionmaker(
             autocommit = False,#自動コミット
@@ -134,9 +134,22 @@ def create_df(db):
     return df
 
 
+def create_df_pre(db):
+    columns=['日時','予測値_PV','予測値_demand']
+    df = pd.DataFrame(columns=columns)
+
+    for row in db:
+        #行だが、結局はDataオブジェクトなので、.で取り出すしかない
+        #dataframeなので、nanがいい気がするがNoneのままにしている。(nanとnoneが混在している)
+        s = pd.Series([row.time,row.PV_pre,row.demand_pre],index=columns)
+        df = df.append(s,ignore_index=True)
+
+    return df
+
+
+
 
 if __name__ == "__main__":
-    #os.chdir("C:\\Users\\f-apl-admin\\住宅実証3\\ユーザー情報")
     path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
     path_userinfo = path_origin +'\\ユーザー情報'
     os.chdir(path_userinfo)

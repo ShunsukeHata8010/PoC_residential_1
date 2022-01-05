@@ -8,7 +8,6 @@ from get_info_from_userlist import get_info_from_userlist
 
 if __name__ == '__main__':
 #ユーザー情報からの取り出し（1件ずつ）
-    #os.chdir("C:\\Users\\f-apl-admin\\住宅実証3\\ユーザー情報")
     path_origin = os.path.dirname(os.path.abspath(__file__)).replace('\\optimazation_program','') #このファイルのあるディレクトリの一つ上のパスを取得
     path_userinfo = path_origin +'\\ユーザー情報'
     os.chdir(path_userinfo)

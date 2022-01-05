@@ -14,7 +14,6 @@ if __name__ == '__main__':
         'X-ND-TOKEN':'WhxgcOFnTMR0ZvC4qAj8Waovr4turnsmslO74gb',#新APIキー
         'content-type':'application/json'
     }
-    #os.chdir('C:\\Users\\f-apl-admin\\住宅実証3\\ユーザー情報')
     path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
     path_userinfo = path_origin +'\\ユーザー情報'
     os.chdir(path_userinfo)

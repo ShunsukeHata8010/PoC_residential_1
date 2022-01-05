@@ -7,9 +7,9 @@ plt.rcParams['font.family'] = "MS Gothic"
 from datetime import datetime, date, timedelta
 
 
-def merge(pv_yosoku,demand_yosoku,jepx_jisseki):#全てのdfのindexを予測時刻で統一してinputする
-    df = pd.merge(pv_yosoku, demand_yosoku,on='日時',how='inner')#innerで処理
-    df = pd.merge(df,jepx_jisseki,on='日時',how='inner')#innerで処理
+def merge(pv_pre,demand_pre,df_jepx):#全てのdfのindexを予測時刻で統一してinputする
+    df = pd.merge(pv_pre, demand_pre,on='日時',how='inner')#innerで処理
+    df = pd.merge(df,df_jepx,on='日時',how='inner')#innerで処理
     #print(df)
     return df
 
@@ -21,12 +21,12 @@ def maltiplication(x,y):#汎用的な関数として
 
 
 #ソルバーへの入力は①需要電力予測値,②PV予測値,③JEPX価格,④EV状態予測,⑤出力や容量など,⑥コマ毎の上限下限SOC
-def solver_residential_battery(df_yosoku,capacity_batt,outputpower_batt,inputpower_batt,maxSOC_batt,minSOC_batt,effi_batt,SOC_batt_latest,power_com):#引数はリストではなく、dataframeとすべき。
+def solver_residential_battery(df_pre,capacity_batt,outputpower_batt,inputpower_batt,maxSOC_batt,minSOC_batt,effi_batt,SOC_batt_latest,power_com):#引数はリストではなく、dataframeとすべき。
     #前準備
     #ここでインデックスを統一して、Nanのある行は削除などをする
-    pv = df_yosoku['予測値_PV'].values.tolist()#元々kWh
-    juyou = df_yosoku['予測値_demand'].values.tolist()#元々kWh
-    jepx = df_yosoku['エリアプライス'+power_com+'(円/kWh)'].values.tolist()
+    pv = df_pre['予測値_PV'].values.tolist()#元々kWh
+    juyou = df_pre['予測値_demand'].values.tolist()#元々kWh
+    jepx = df_pre['価格'].values.tolist()
     #print(len(pv))
     #print(len(juyou))
     #print(len(jepx))
@@ -46,15 +46,13 @@ def solver_residential_battery(df_yosoku,capacity_batt,outputpower_batt,inputpow
 
     #卒FIT住宅は自家消費のインセンティブを高くする
     jikashohi_incentive = 25 #単位は円/kWh
-    jepx_incentive_diffirence = calc_jikashohi_incetive(df_yosoku,jikashohi_incentive,power_com)
+    jepx_incentive_diffirence = calc_jikashohi_incetive(df_pre,jikashohi_incentive,power_com)
     print('#########JEPX自家消費インセンティブを含めた平均値との差異#############')
     print(jepx_incentive_diffirence)
     print('######################')
     #pulpを含むsolverを呼び出して、最適化で算出された結果をbatt_outinに格納する
     batt_outin,status = pulp_residential_battery(juden,pv,jepx_ave,jepx_incentive_diffirence,capacity_batt,outputpower_batt,inputpower_batt,maxSOC_batt,minSOC_batt,effi_batt,SOC_batt_latest)
-    
-    #capacity_batt,outputpower_batt,inputpower_batt,maxSOC_batt,minSOC_batt,effi_batt
-    
+        
     #最適化された充放電に基づくSOC値の計算（制約条件とは独立して算出）
     yotei_soc = calc_SOC(batt_outin,SOC_batt_latest,capacity_batt)#各コマの充放電予定量から各コマの予定SOCを算出
     
@@ -62,7 +60,7 @@ def solver_residential_battery(df_yosoku,capacity_batt,outputpower_batt,inputpow
     batt_outin_fig = list(round(c.value(),2) for c in batt_outin)
 
     #結果をきれいにしてくれる関数    
-    df = cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_yosoku,SOC_batt_latest,batt_outin_fig,yotei_soc,jepx_ave_difference,jepx_incentive_diffirence,power_com)
+    df = cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_pre,SOC_batt_latest,batt_outin_fig,yotei_soc,jepx_ave_difference,jepx_incentive_diffirence,power_com)
 
     return df,status
 
@@ -70,11 +68,10 @@ def graph_residential_battery(df,power_com):
     #グラフにしたいカラムを全部リストにしてしまう。
     #print(df)
     koma = df.index.tolist()#Series型からlistへの変換
-
     juden = df['前_受電電力'].values.tolist()#Series型からlistへの変換
     juden_ato = df['最適後_受電電力'].values.tolist()#Series型からlistへの変換
     batt_outin = df['蓄電池_充放電量'].values.tolist()#Series型からlistへの変換
-    jepx =df['エリアプライス'+power_com+'(円/kWh)'].values.tolist()
+    jepx =df['価格'].values.tolist()
     jepx_ave_difference = df['JEPX平均差額'].values.tolist()#Series型からlistへの変換
     
     #平均より高い時をプラスにするため異符号にする
@@ -293,12 +290,12 @@ def pulp_residential_battery(juden,pv,jepx_ave,jepx_incentive_diffirence,capacit
     print('Pulp実行中５：EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
     return batt_outin,status
 
-def calc_jikashohi_incetive(df_yosoku,jikashohi_incentive,power_com):
+def calc_jikashohi_incetive(df_pre,jikashohi_incentive,power_com):
     #######卒FIT住宅は自家消費のインセンティブを高くする#######
     jepx_incentive=[]#PV発電量がある時間帯は一律,自家消費インセンティブ分、引く。df_pv_jepxがpv発電量予測とjepx予測が並んだDataFrame
     #jikashohi_incentive = 15 #単位は円/kWh
     
-    for i,j,k in zip(df_yosoku['予測値_PV'],df_yosoku['予測値_demand'],df_yosoku['エリアプライス'+power_com+'(円/kWh)']):
+    for i,j,k in zip(df_pre['予測値_PV'],df_pre['予測値_demand'],df_pre['価格']):
         if i==0:#発電量がゼロの時
             jepx_incentive.append(k)
         elif i>0:#発電量がゼロではなく、
@@ -316,8 +313,7 @@ def calc_jikashohi_incetive(df_yosoku,jikashohi_incentive,power_com):
     return jepx_incentive_diffirence
 
 
-def cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_yosoku,SOC_batt_latest,batt_outin_fig,yotei_soc,jepx_ave_difference,jepx_incentive_diffirence,power_com):
-    #capacity_batt,outputpower_batt,inputpower_batt,maxSOC_batt,minSOC_batt,effi_batt
+def cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_pre,SOC_batt_latest,batt_outin_fig,yotei_soc,jepx_ave_difference,jepx_incentive_diffirence,power_com):
     batt_shoki = SOC_batt_latest #
     batt_effi = 1 - effi_batt # 1-としていることに注意!!!
     batt_youryo = capacity_batt
@@ -326,7 +322,7 @@ def cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_yosoku,SOC_b
     for i,j in zip (juden,batt_outin_fig):
         juden_ato_opt.append(round(i + j,2))
     #listをシリーズに変えていく
-    koma = pd.Series(list(df_yosoku.index)) #インデックスはindexで取得する
+    koma = pd.Series(list(df_pre.index)) #インデックスはindexで取得する
     batt_outin = pd.Series(batt_outin_fig)
     soc_ba = pd.Series(yotei_soc)
     jepx = pd.Series(jepx_ave_difference)
@@ -340,7 +336,7 @@ def cleanliness_residetial_battery(capacity_batt,effi_batt,juden,df_yosoku,SOC_b
     df_1 = df_1.rename(columns={0:'コマ',1:'前_受電電力',2:'蓄電池_充放電量',3:'最適後_受電電力',4:'蓄電池SOC',5:'JEPX平均差額',6:'JEPX平均差額(自家消費動機有)'})
     df_1 = df_1.set_index('コマ')
     df = pd.concat([df,df_1],axis=1)
-    df = pd.concat([df,df_yosoku['予測値_demand'],df_yosoku['予測値_PV'],df_yosoku['エリアプライス'+power_com+'(円/kWh)']],axis=1)
+    df = pd.concat([df,df_pre['予測値_demand'],df_pre['予測値_PV'],df_pre['価格']],axis=1)
     df = df.rename(columns={'予測値_demand':'予測_需要電力(kWh)','予測値_PV':'予測_PV(kWh)'})
     df = df.dropna(how='any')#1つでもNanの要素がある行を削除
     batt_losskouryo_1 = df['蓄電池_充放電量'].values.tolist()
