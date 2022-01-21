@@ -6,37 +6,28 @@ from sqlalchemy import desc,asc
 import pandas as pd
 from sqlalchemy.sql.sqltypes import Boolean, String
 import mysql.connector
+import configparser
 
-"""
-conn = mysql.connector.connect(host='127.0.0.1',user='root',password='@Idemitsu1')
-cursor = conn.cursor()
-cursor.execute('CREATE DATABASE tes_myslq_database')
-
-cursor.close()
-conn.close()
-"""
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
+HOST = config['MySQL']['HOST']
+USER = config['MySQL']['USER']
+PASSWORD = config['MySQL']['PASSWORD']
 
 #url = 'mysql+pymysql://ユーザ名:パスワード@IPアドレス/DB名'
 #これだけではデータベースは生成されない。これはデータベースがあることが前提.
 #無い場合は、sqlalchemy.exc.OperationalError エラーが発生
-"""
-def create_database(name,id):
-    conn = mysql.connector.connect(host='127.0.0.1',user='root',password='@Idemitsu1')
-    cursor = conn.cursor()
-    cursor.execute('CREATE DATABASE data_30min_'+name+id)
-"""
-
 def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_2,list_ecocute,list_aircon,list_thermo,flag):
     #とりあえず、データベースを作ろうとさせて
     try:
-        conn = mysql.connector.connect(host='127.0.0.1',user='root',password='@Idemitsu1')
+        conn = mysql.connector.connect(host = HOST, user = USER, password = PASSWORD)
         cursor = conn.cursor()
-        cursor.execute('CREATE DATABASE data_30min_'+name+'_'+id)
+        cursor.execute('CREATE DATABASE data_30min_' + name + '_' + id)
     except mysql.connector.errors.DatabaseError :#すでにあるときにエラー   
         print('すでにデータベースが存在しています')
     finally:#どっちにしろ、add(Create)の作業に進む
-        database = 'data_30min_'+name+'_'+id
-        engine = create_engine('mysql+pymysql://root:@Idemitsu1@127.0.0.1/'+database,echo=True)
+        database = 'data_30min_' + name + '_' + id
+        engine = create_engine('mysql+pymysql://'+USER+':'+PASSWORD+'@'+HOST+'/' + database,echo=False)
         db_session = scoped_session(
             sessionmaker(
                 autocommit = False,#自動コミット
@@ -50,9 +41,9 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
 
         #tableはエクセルでいうシート
         class Data(Base):
-            __tablename__ ='Data_30min' #tableの名前の定義
+            __tablename__ = 'Data_30min' #tableの名前の定義
             id = Column(Integer, primary_key = True)  #idを主キーにしておく
-            time = Column(DateTime,unique=True)#一旦False
+            time = Column(DateTime,unique=True)
             PV_pre = Column(Float,unique = False)
             PV_actual = Column(Float,unique = False,nullable = True)
             kaiden = Column(Float,unique = False,nullable = True)
@@ -81,6 +72,7 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
             Aircon_status = Column(String(20), unique = False,nullable = True)
             Aircon_mode = Column(String(20), unique = False,nullable = True)
             Aircon_temp = Column(Integer,unique = False,nullable = True)
+            Aircon_Direction =Column(Integer,unique = False,nullable = True)
             #温湿度計
             Thermo_temp = Column(Integer,unique = False,nullable = True)
             Thermo_humid = Column(Float,unique = False,nullable = True)
@@ -90,7 +82,7 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
                 battery_status=None,SOC=None,chargable_amount=None,dischargable_amount=None,remaining_amount=None,
                 SOC_updown=None,chargable_amount_updown=None,dischargable_amount_updown=None,remaining_amount_updown=None,Batt_Direction=None,
                 Ecocute_status=None,Ecocute_mode=None,Ecocute_heating=None,Ecocute_participateInEnergyShift=None,Ecocute_timeToStartHeating=None,Ecocute_numberOfEnergyShift=None,Ecocute_daytimeHeatingShiftTime1=None,Ecocute_Direction=None,
-                Aircon_status=None,Aircon_mode=None,Aircon_temp=None, 
+                Aircon_status=None,Aircon_mode=None,Aircon_temp=None,Aircon_Direction=None,
                 Thermo_temp=None,Thermo_humid=None,Thermo_battery=None):
                 self.time = time
                 self.PV_pre = PV_pre
@@ -118,12 +110,12 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
                 self.Aircon_status = Aircon_status
                 self.Aircon_mode = Aircon_mode
                 self.Aircon_temp = Aircon_temp
+                self.Aircon_Direction = Aircon_Direction
                 self.Thermo_temp = Thermo_temp
                 self.Thermo_humid = Thermo_humid
                 self.Thermo_battery = Thermo_battery
 
         Base.metadata.create_all(bind=engine)#データベースを初期化するイメージ(作られたくらい)
-        #ここでデフォルトの値を決めておくと便利。
 
     #ここでデフォルトの値を決めておくと便利。
         data_30min = 'data'
@@ -152,6 +144,7 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
         Aircon_status = None
         Aircon_mode = None
         Aircon_temp = None
+        Aircon_Direction = None
         Thermo_temp = None
         Thermo_humid = None
         Thermo_battery = None
@@ -206,7 +199,7 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
             battery_status=battery_status,SOC=SOC,chargable_amount=chargable_amount,dischargable_amount=dischargable_amount,remaining_amount=remaining_amount,
             SOC_updown=SOC_updown,chargable_amount_updown=chargable_amount_updown,dischargable_amount_updown=dischargable_amount_updown,remaining_amount_updown=remaining_amount_updown,Batt_Direction=Batt_Direction,
             Ecocute_status=Ecocute_status,Ecocute_mode=Ecocute_mode,Ecocute_heating=Ecocute_heating,Ecocute_participateInEnergyShift=Ecocute_participateInEnergyShift,Ecocute_timeToStartHeating=Ecocute_timeToStartHeating,Ecocute_numberOfEnergyShift=Ecocute_numberOfEnergyShift,Ecocute_daytimeHeatingShiftTime1=Ecocute_daytimeHeatingShiftTime1,Ecocute_Direction=Ecocute_Direction,
-            Aircon_status=Aircon_status,Aircon_mode=Aircon_mode,Aircon_temp=Aircon_temp,
+            Aircon_status=Aircon_status,Aircon_mode=Aircon_mode,Aircon_temp=Aircon_temp,Aircon_Direction=Aircon_Direction,
             Thermo_temp=Thermo_temp,Thermo_humid=Thermo_humid,Thermo_battery=Thermo_battery)     
 
         if data_30min == 'data':
@@ -218,8 +211,8 @@ def create_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
 
 #UPDATE用関数
 def update_database(name,id,date_time,value_1,value_2,list_battery,list_battery_2,list_ecocute,list_aircon,list_thermo,flag):
-    database = 'data_30min_'+name+'_'+str(id)
-    engine = create_engine('mysql+pymysql://root:@Idemitsu1@127.0.0.1/'+database,echo=True)
+    database = 'data_30min_' + name + '_' + str(id)
+    engine = create_engine('mysql+pymysql://'+USER+':'+PASSWORD+'@'+HOST+'/' + database,echo=False)
     db_session = scoped_session(
         sessionmaker(
             autocommit = False,#自動コミット
@@ -233,7 +226,7 @@ def update_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
 
     #tableはエクセルでいうシート
     class Data(Base):
-        __tablename__ ='Data_30min' #tableの名前の定義
+        __tablename__ = 'Data_30min' #tableの名前の定義
         id = Column(Integer, primary_key = True)  #idを主キーにしておく
         time = Column(DateTime,unique=True)#一旦False
         PV_pre = Column(Float,unique = False)
@@ -264,6 +257,7 @@ def update_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
         Aircon_status = Column(String(20), unique = False,nullable = True)
         Aircon_mode = Column(String(20), unique = False,nullable = True)
         Aircon_temp = Column(Integer,unique = False,nullable = True)
+        Aircon_Direction = Column(Integer,unique = False,nullable = True)
         #温湿度計
         Thermo_temp = Column(Integer,unique = False,nullable = True)
         Thermo_humid = Column(Float,unique = False,nullable = True)
@@ -273,7 +267,7 @@ def update_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
             battery_status=None,SOC=None,chargable_amount=None,dischargable_amount=None,remaining_amount=None,
             SOC_updown=None,chargable_amount_updown=None,dischargable_amount_updown=None,remaining_amount_updown=None,Batt_Direction=None,
             Ecocute_status=None,Ecocute_mode=None,Ecocute_heating=None,Ecocute_participateInEnergyShift=None,Ecocute_timeToStartHeating=None,Ecocute_numberOfEnergyShift=None,Ecocute_daytimeHeatingShiftTime1=None,Ecocute_Direction=None,
-            Aircon_status=None,Aircon_mode=None,Aircon_temp=None,
+            Aircon_status=None,Aircon_mode=None,Aircon_temp=None,Aircon_Direction=None,
             Thermo_temp=None,Thermo_humid=None,Thermo_battery=None):
             self.time = time
             self.PV_pre = PV_pre
@@ -301,6 +295,7 @@ def update_database(name,id,date_time,value_1,value_2,list_battery,list_battery_
             self.Aircon_status = Aircon_status
             self.Aircon_mode = Aircon_mode
             self.Aircon_temp = Aircon_temp
+            self.Aircon_Direction = Aircon_Direction
             self.Thermo_temp = Thermo_temp
             self.Thermo_humid = Thermo_humid
             self.Thermo_battery = Thermo_battery

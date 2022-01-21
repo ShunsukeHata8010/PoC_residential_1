@@ -7,10 +7,18 @@ import pandas as pd
 import numpy as np
 import altair as alt
 from nextdriveAPI_class import House
-from create_csv_from_database import read_database,Data
+from main_create_csv_from_database import read_database,Data
 import sqlalchemy
 import time
 from database_mysql_for_jepx import read_database_jepx,Data_jepx
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
+USER_INFORMATION_FOLDER = config['Folders']['USER_INFORMATION_FOLDER']
+LOG_FOLDER = config['Folders']['USER_INFORMATION_FOLDER']
+FOR_DEMAND_PREDICTION_FOLDER = config['Folders']['FOR_DEMAND_PREDICTION_FOLDER']
+DATA_FROM_DATABASE = config['Folders']['DATA_FROM_DATABASE']
 
 #タイトルを入れる
 def input_title():
@@ -22,11 +30,8 @@ def input_title():
 
 def make_select_users():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))#このファイルのあるディレクトリへ移動
-    path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
-    path_userinfo = path_origin +'\\ユーザー情報'
-
-    files = os.listdir(path_userinfo)
-    allfolder = [f for f in files if os.path.isdir(os.path.join(path_userinfo, f))]
+    files = os.listdir(USER_INFORMATION_FOLDER)
+    allfolder = [f for f in files if os.path.isdir(os.path.join(USER_INFORMATION_FOLDER, f))]
     selected_user = st.sidebar.selectbox(
         '表示するユーザーを選択：',#デフォルトで表示している文字
         allfolder#表示するリスト
@@ -34,8 +39,8 @@ def make_select_users():
     st.write(f"""
     {selected_user}さんの
     """)
-    selected_name = selected_user.replace(path_userinfo,'').split('_')[0]
-    selected_id = selected_user.replace(path_userinfo,'').split('_')[1]
+    selected_name = selected_user.replace(USER_INFORMATION_FOLDER,'').split('_')[0]
+    selected_id = selected_user.replace(USER_INFORMATION_FOLDER,'').split('_')[1]
 
     return selected_name,selected_id
 
@@ -50,19 +55,17 @@ def make_duration():
 
 @st.cache(suppress_st_warning=True)
 def df_from_database(name,id):
-    now = datetime.now()
-    #ここで現在コマより新しい行だけをとってくるための作業をする            
-    day_20ago = now.replace(minute=0, second=0, microsecond=0) - timedelta(20)
-    print(day_20ago)
+    now = datetime.now()        
+    #day_20ago = now.replace(minute=0, second=0, microsecond=0) - timedelta(days=20)
     db_session = read_database(name,id)
     db = db_session.query(Data).all()
-    #db = db_session.query(Data).filter(Data.time >day_20ago)
+    #db = db_session.query(Data).filter(Data.time >= day_20ago)
     columns=['id','日時','予測値_PV','PV発電量','買電量','予測値_demand',
     'battery状態','SOC','充電可能量','放電可能量','残電力量','SOC_増減',
     '充電量可能量_増減','放電可能量_増減','残電力量_増減','充放電指示量',
     'EQ動作状態','沸き上げ自動設定','沸き上げ中状態',
     'ｴﾈﾙｷﾞｰｼﾌﾄ参加状態','沸き上げ開始基準時刻','ｴﾈﾙｷﾞｰｼﾌﾄ参回数','昼間沸き上げｼﾌﾄ時刻1','EQ指示時刻',
-    'ｴｱｺﾝ状態','ｴｱｺﾝmode','ｴｱｺﾝ設定温度','気温','湿度','温度計_残電池']
+    'ｴｱｺﾝ状態','ｴｱｺﾝmode','ｴｱｺﾝ設定温度','ｴｱｺﾝ指示量','気温','湿度','温度計_残電池']
     df = pd.DataFrame(columns=columns)
 
     for row in db:
@@ -73,7 +76,8 @@ def df_from_database(name,id):
         row.chargable_amount_updown,row.dischargable_amount_updown,row.remaining_amount_updown,row.Batt_Direction,
         row.Ecocute_status,row.Ecocute_mode,row.Ecocute_heating,
         row.Ecocute_participateInEnergyShift,row.Ecocute_timeToStartHeating,row.Ecocute_numberOfEnergyShift,row.Ecocute_daytimeHeatingShiftTime1,row.Ecocute_Direction,
-        row.Aircon_status,row.Aircon_mode,row.Aircon_temp,row.Thermo_temp,row.Thermo_humid,row.Thermo_battery],index=columns)
+        row.Aircon_status,row.Aircon_mode,row.Aircon_temp,row.Aircon_Direction,
+        row.Thermo_temp,row.Thermo_humid,row.Thermo_battery],index=columns)
 
         df = df.append(s,ignore_index=True)
 
@@ -87,10 +91,9 @@ def df_from_database(name,id):
     return df
 
 def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
-    print(df_jepx)
+
     df_jepx['価格(10分の1)_'+power_com] = df_jepx['価格'] * 0.1
     df = pd.merge(df, df_jepx, on='日時', how='outer')
-    print(df)
     selected_koma = selected_duration*48
     cut_koma = cut_duration*48
     df_length = len(df)
@@ -104,9 +107,8 @@ def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
         max_display = df_length - cut_koma
     else:
         max_display = df_length
-    print(min_display,max_display)
+
     df = df.iloc[min_display:max_display,:]
-    print(df)
     list_linechart_1 = []
     list_linechart_2= []
     list_barchart_1 = []
@@ -114,26 +116,25 @@ def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
     y_heating_onoff = []
     y_aircon = []
     df_copy = df.copy()#SettingWithCopyWarning防止用
-    #print(df_copy)
 
-    if '価格(10分の1)_'+power_com in df.columns:
+    if '価格(10分の1)_' + power_com in df.columns:
         list_linechart_2.append('価格(10分の1)_'+power_com)
 
-    if '予測値_PV'in df.columns:
+    if '予測値_PV' in df.columns:
         list_linechart_1.append('予測値_PV')
 
-    if 'PV発電量'in df.columns:
+    if 'PV発電量' in df.columns:
         list_linechart_1.append('PV発電量')
 
-    if '予測値_demand'in df.columns:
+    if '予測値_demand' in df.columns:
         list_linechart_1.append('予測値_demand')
 
-    if '買電量'in df.columns:
-        if 'PV発電量'in df.columns:
+    if '買電量' in df.columns:
+        if 'PV発電量'  in df.columns:
             df_copy['需要_実績'] = df['買電量'] + df['PV発電量']
             list_linechart_1.append('需要_実績')
         else:
-            if '予測値_PV'in df.columns:
+            if '予測値_PV' in df.columns:
                 df_copy['需要_実績'] = df['買電量'] + df['予測値_PV']
                 list_linechart_1.append('需要_実績')
             else:
@@ -142,7 +143,7 @@ def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
 
         list_linechart_1.append('買電量')
 
-    if '残電力量_増減'in df.columns:
+    if '残電力量_増減' in df.columns:
         df_copy = df_copy.rename(columns={'残電力量_増減': '蓄電池_充放電(kWh)'})
         list_barchart_1.append('蓄電池_充放電(kWh)')
 
@@ -152,20 +153,20 @@ def make_1st_chart(df,selected_duration,cut_duration,df_jepx,power_com):
 
     if '沸き上げ中状態'in df.columns:
         for i in df['沸き上げ中状態'].values.tolist():
-            if i =='Heating':
+            if i == 'Heating':
                 y_heating_onoff.append(0.5*0.8)
-            elif i =='Not heating':
+            elif i == 'Not heating':
                 y_heating_onoff.append(0)
             else:
                 y_heating_onoff.append(0)
         df_copy['EQ動作実績(kWh)'] = y_heating_onoff
         list_barchart_1.append('EQ動作実績(kWh)')
 
-    if 'SOC'in df.columns:
+    if 'SOC' in df.columns:
         df_copy['蓄電池SOC'] = df['SOC']/100
         list_linechart_1.append('蓄電池SOC')
 
-    if 'ｴｱｺﾝ状態'in df.columns:
+    if 'ｴｱｺﾝ状態' in df.columns:
         for i in df['ｴｱｺﾝ状態'].values.tolist():
             if i =='ON':
                 y_aircon.append(1)
@@ -255,20 +256,20 @@ def recent_30min_get(name,id):
         st.write('直近30分の',selected_item+'状況')
 
         Person = House(name,id)
-        if selected_item =='スマートメーター':
+        if selected_item == 'スマートメーター':
             df,endtime = Person.DataRetrieval_SmartMeter_30min()
             if type(df) is bool:
-                if df==False:
+                if df == False:
                     st.write('スマートメーターは接続されていません。')
             else:
                 df = df[['scope', 'generatedTime', 'uploadedTime','value']]
                 df = df.sort_values('generatedTime', ascending=False)#降順に設定
                 st.table(df)
 
-        elif selected_item =='PV':
+        elif selected_item == 'PV':
             df,endtime = Person.DataRetrieval_SolarPW_30min()
             if type(df) is bool:
-                if df==False:
+                if df == False:
                     st.write('PVは接続されていません。')
             else:
                 df = df[['scope', 'generatedTime', 'uploadedTime','value']]
@@ -278,11 +279,11 @@ def recent_30min_get(name,id):
         elif selected_item =='蓄電池':
             df,endtime = Person.DataRetrieval_StgBattery_30min()
             if type(df) is bool:
-                if df==False:
+                if df == False:
                     st.write('蓄電池は接続されていません。')
             else:
-                value =[]
-                str_value=[]
+                value = []
+                str_value = []
                 df = df[['scope', 'generatedTime', 'uploadedTime','value']]
                 df = df.sort_values('generatedTime', ascending=False)#降順に設定
                 #value列はintとstrの混合であるため、これはst.できないらしいので、その対応
@@ -308,14 +309,14 @@ def recent_30min_get(name,id):
                 df = df.sort_values('generatedTime', ascending=False)#降順に設定
                 st.table(df)
 
-        elif selected_item =='エアコン':
+        elif selected_item == 'エアコン':
             df,endtime = Person.DataRetrieval_AirCon_living_30min()
             if type(df) is bool:
-                if df==False:
+                if df == False:
                     st.write('エアコンは接続されていません。')
             else:
-                value =[]
-                str_value=[]
+                value = []
+                str_value = []
                 df = df[['scope', 'generatedTime', 'uploadedTime','value']]
                 df = df.sort_values('generatedTime', ascending=False)#降順に設定
                 for index,row in df.iterrows():
@@ -325,19 +326,19 @@ def recent_30min_get(name,id):
                     elif type(row.value) is int or float:
                         str_value.append(np.nan)
                         value.append(row.value)
-                df['value']=value
-                df['str_value']=str_value
+                df['value'] = value
+                df['str_value'] = str_value
 
                 st.table(df)
 
-        elif selected_item =='エコキュート':
+        elif selected_item == 'エコキュート':
             df,endtime = Person.DataRetrieval_ElecWaterHeater_30min()
             if type(df) is bool:
-                if df==False:
+                if df == False:
                     st.write('エコキュートは接続されていません。')
             else:
-                value =[]
-                str_value=[]
+                value = []
+                str_value = []
                 df = df[['scope', 'generatedTime', 'uploadedTime','value']]
                 df = df.sort_values('generatedTime', ascending=False)#降順に設定
                 for index,row in df.iterrows():
@@ -347,8 +348,8 @@ def recent_30min_get(name,id):
                     elif type(row.value) is int or float:
                         str_value.append(np.nan)
                         value.append(row.value)
-                df['value']=value
-                df['str_value']=str_value
+                df['value'] = value
+                df['str_value'] = str_value
                 st.table(df)
 
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -356,8 +357,7 @@ def recent_30min_get(name,id):
 #@st.cache(suppress_st_warning=True)
 def select_power_com(id):
     path_origin = os.path.dirname(os.path.abspath(__file__)) #このファイルのあるディレクトリのパスを取得
-    path_userinfo = path_origin +'\\ユーザー情報'
-    os.chdir(path_userinfo)
+    os.chdir(USER_INFORMATION_FOLDER)
     df_user = pd.read_excel('ユーザー情報.xlsx')
     df_user = df_user.set_index('Product ID')
     power_com = df_user.loc[str(id),'電力管内']

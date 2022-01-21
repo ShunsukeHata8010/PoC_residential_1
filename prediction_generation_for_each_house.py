@@ -138,21 +138,21 @@ def KeishaNissha(Ido,Keido,J,Ts,θa,X,H,kage_x,kage_y,kage_h,kage_Φ):#J:1/1か�
     #print('方位無のh:',round(h,2),'hb:',round(hb,2),'hr:',round(hr,2),'hd',round(hd,2))
     #print('h:',round(hb+hr+hd,2),'hb:',round(hb,2),'hr:',round(hr,2),'hd',round(hd,2))
     #低太陽高度時の補正(hが異常値であれば、合意的な範囲に修正。保険として入れている)
-    if H*0.6 < h < H*1.6:
+    if H * 0.6 < h < H * 1.6:
         h = h
-    if h <= H*0.6:
-        h = H*0.9
-    if H*1.6 <= h:
-        h = H*1.1
+    if h <= H * 0.6:
+        h = H * 0.9
+    if H * 1.6 <= h:
+        h = H * 1.1
     #hが異常値のときhbが異常であるため、影の時hb=0としても問題無い。
-    α = α*180/pi #度単位へ変換
-    A = A*180/pi+180 #度単位へ変換と180度ずらす
+    α = α * 180 / pi #度単位へ変換
+    A = A * 180 / pi + 180 #度単位へ変換と180度ずらす
     kage=KageHandan(α,A,kage_x,kage_y,kage_h,kage_Φ)
     if kage == 'kage':
         #print('時間:',Ts,'影！！！！！！！！！！！！')
         #print('h:',round(hb+hr+hd,2),'hb:',round(hb,2),'hr:',round(hr,2),'hd',round(hd,2))
         h = hr + hd
-    elif kage =='nokage':
+    elif kage == 'nokage':
         #print('時間:',Ts,'影なし')
         #print('h:',round(hb+hr+hd,2),'hb:',round(hb,2),'hr:',round(hr,2),'hd',round(hd,2))
         h = h
@@ -197,8 +197,8 @@ def calc_generation(Ido,Keido,panel_kakudo,panel_houi,pv_yoryo,rekka,ΔT,kasekis
     df = df.drop([0,1,2])
     df = df.reset_index(drop=True)
     df['予測時刻'] = now.strftime('%Y%m%d_%H%M') 
-    ΔT_jisseki=18.4
-    df['温度補正係数'] = 1-(df['気温']+ΔT_jisseki-25)*0.31/100
+    ΔT_jisseki = 18.4
+    df['温度補正係数'] = 1 - (df['気温'] + ΔT_jisseki - 25) * 0.31 / 100
     #print(df['予報時刻'])
     θa = panel_kakudo
     X = panel_houi
@@ -210,14 +210,14 @@ def calc_generation(Ido,Keido,panel_kakudo,panel_houi,pv_yoryo,rekka,ΔT,kasekis
         dt_now = datetime.datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
         dt1 = datetime.date(year=dt_now.year, month=1, day=1)
         td = dt_now.date() - dt1 #datetime.timedelta型
-        J =td.days +0.5 #これでint型になっている
+        J = td.days + 0.5 #これでint型になっている
         Ts = dt_now.hour
         ####ここに影計算プログラムを入れる。インプットは、J,Ts
         H = suihei/1000 #kW/㎡単位へ 
         keishanisha = KeishaNissha(Ido,Keido,J,Ts,θa,X,H,kage_x,kage_y,kage_h,kage_Φ)#J:1/1から通算日数,Ts:その時間,θa:パネル角度,X:パネル方位,H:水平面日射量
         data_keishanisha.append(keishanisha)
 
-    df['傾斜面日射量'] =data_keishanisha
+    df['傾斜面日射量'] = data_keishanisha
 
     #学習元ファイルも同じディレクトリにいれている。   
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -267,7 +267,7 @@ def calc_generation(Ido,Keido,panel_kakudo,panel_houi,pv_yoryo,rekka,ΔT,kasekis
         if nissha <= 0.005:#ゼロ発電量の閾値を0.005kW/㎡に設定
             data.append(0)
 
-    df['予測発電量[kWh/kW]'] =data
+    df['予測発電量[kWh/kW]'] = data
     data = []
 
     for time in df['予報時刻']:
@@ -277,18 +277,18 @@ def calc_generation(Ido,Keido,panel_kakudo,panel_houi,pv_yoryo,rekka,ΔT,kasekis
         #dt_now = dt.fromtimestamp(dt_now) #unixtimeになっているので、通常日時へ変換。
         data.append(dt_now)
 
-    df['予報時刻']=data
+    df['予報時刻'] = data
 
     df_x = pd.DataFrame()
     num = len(df)
-    data=[]
-    data_2=[]
-    data_3=[]
+    data = []
+    data_2 = []
+    data_3 = []
 #ここで配線ロス関数を使ってしまうと、二重に計算することになってしまう。
     for i in range(num):
         data.append(round(df.iat[i,18],2))
         data_2.append(round(df.iat[i,17],2))
-        if i<num-1:
+        if i < num - 1:
             if df.iat[i,18] <= df.iat[i+1,18]:#日射量増加傾向のとき
                 if df.iat[i,9] <= df.iat[i+1,9]:#雲量が多くなるのであれば、
                     data.append(round((df.iat[i,18]*2+df.iat[i+1,18])/3,2))
@@ -306,7 +306,7 @@ def calc_generation(Ido,Keido,panel_kakudo,panel_houi,pv_yoryo,rekka,ΔT,kasekis
 
     for i in range(num):
         data_3.append(df.iat[i,0])
-        if i<num-1:
+        if i < num - 1:
             data_3.append(df.iat[i,0]+datetime.timedelta(hours=0.5))
             #これはtimestamp型＝pandasの中でのdatetime型のようなもの。
             #print(type(df.iat[i,0]+datetime.timedelta(hours=0.5)))
